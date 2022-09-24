@@ -1,0 +1,19 @@
+{
+    "defaultEnv": "dev",
+    "dev":
+    {
+        "driver": "pg",
+        "user": "shopping_user",
+        "password": "password123",
+        "host": "127.0.0.1",
+        "database": "shopping"
+    },
+    "test":
+    {
+        "driver": "pg",
+        "user": "shopping_user",
+        "password": "password123",
+        "host": "127.0.0.1",
+        "database": "shopping_test"
+    }
+}
