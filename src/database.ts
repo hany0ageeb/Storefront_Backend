@@ -11,6 +11,8 @@ export interface ApplicationConfiguration {
   password: string | undefined;
   testDatabase: string | undefined;
   tokenSecret: string | undefined;
+  databasPort: number | undefined;
+  serverPort: number | undefined;
 }
 export const configuration: ApplicationConfiguration = {
   host: process.env.POSTGRES_HOST,
@@ -21,6 +23,12 @@ export const configuration: ApplicationConfiguration = {
   environment: process.env.ENV,
   saltRound: Number(process.env.SALT_ROUNDS) || 10,
   tokenSecret: process.env.TOKEN_SECRET,
+  databasPort: isNaN(Number(process.env.DB_PORT))
+    ? 5432
+    : Number(process.env.DB_PORT),
+  serverPort: isNaN(Number(process.env.SERVER_PORT))
+    ? 3000
+    : Number(process.env.SERVER_PORT),
 };
 let client: Pool;
 export const createClient = (): Pool => {
@@ -31,6 +39,7 @@ export const createClient = (): Pool => {
         database: configuration.database,
         user: configuration.user,
         password: configuration.password,
+        port: configuration.databasPort,
       });
     } else if (configuration.environment === 'test') {
       client = new Pool({
@@ -38,6 +47,7 @@ export const createClient = (): Pool => {
         database: configuration.testDatabase,
         user: configuration.user,
         password: configuration.password,
+        port: configuration.databasPort,
       });
     } else {
       client = new Pool({
@@ -45,6 +55,7 @@ export const createClient = (): Pool => {
         database: configuration.database,
         user: configuration.user,
         password: configuration.password,
+        port: configuration.databasPort,
       });
     }
   }

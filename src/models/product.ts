@@ -1,4 +1,5 @@
 import { createClient } from '../database';
+import { OrderLine } from './order';
 
 export interface Product {
   id: number;
@@ -17,7 +18,7 @@ export class ProductStore {
         return {
           id: row.id,
           name: row.name,
-          price: row.price,
+          price: Number(row.price),
           category: row.category,
         };
       });
@@ -35,7 +36,7 @@ export class ProductStore {
         return {
           id: queryResult.rows[0].id,
           name: queryResult.rows[0].name,
-          price: queryResult.rows[0].price,
+          price: Number(queryResult.rows[0].price),
           category: queryResult.rows[0].category,
         };
       else return null;
@@ -58,7 +59,7 @@ export class ProductStore {
         id: queryResult.rows[0].id,
         name: queryResult.rows[0].name,
         category: queryResult.rows[0].category,
-        price: queryResult.rows[0].price,
+        price: Number(queryResult.rows[0].price),
       };
     } catch (err) {
       throw new Error(`Could not create product ${product.name} : ${err}`);
@@ -82,6 +83,71 @@ export class ProductStore {
       }
     } catch (err) {
       throw new Error(`Could not delete product ${productId} : ${err}`);
+    }
+  }
+  async update(product: Product): Promise<Product | null> {
+    const connection = await createClient().connect();
+    try {
+      const sql =
+        'UPDATE products SET name=$1, price=$2, category=$3 WHERE id=$4 RETURNING *';
+      const queryResult = await connection.query(sql, [
+        product.name,
+        product.price,
+        product.category,
+        product.id,
+      ]);
+      if (queryResult.rows.length > 0) {
+        return {
+          id: queryResult.rows[0].id,
+          name: queryResult.rows[0].name,
+          price: Number(queryResult.rows[0].price),
+          category: queryResult.rows[0].category,
+        };
+      } else {
+        return null;
+      }
+    } catch (err) {
+      throw new Error(`Cannot Update Product: ${err}`);
+    } finally {
+      connection.release();
+    }
+  }
+  async isProductHasOrders(productId: string): Promise<boolean> {
+    const connection = await createClient().connect();
+    try {
+      const sql =
+        'SELECT COALESCE(count(id), 0) as product_order_lines_count from order_product WHERE product_id = $1';
+      const queryResult = await connection.query(sql, [productId]);
+      return queryResult.rows[0].product_order_lines_count > 0;
+    } finally {
+      connection.release();
+    }
+  }
+  async getProductOrderLines(productId: string): Promise<OrderLine[]> {
+    const connection = await createClient().connect();
+    try {
+      const sql =
+        'SELECT order_product.id,order_product.order_id,order_product.product_id, order_product.quantity, products.name, products.price, products.category FROM order_product JOIN products ON order_product.product_id = products.id WHERE order_product.product_id = $1';
+      const queryResult = await connection.query(sql);
+      return queryResult.rows.map((row) => {
+        const line: OrderLine = {
+          id: row.id,
+          productId: row.product_id,
+          quantity: row.quantity,
+          orderId: row.order_id,
+          product: {
+            id: row.product_id,
+            name: row.name,
+            price: Number(row.price),
+            category: row.category,
+          },
+        };
+        return line;
+      });
+    } catch (err) {
+      throw new Error(`Could not retrieve product ${productId} Orders: ${err}`);
+    } finally {
+      connection.release();
     }
   }
   async getProductsByCategory(productCategory: string): Promise<Product[]> {

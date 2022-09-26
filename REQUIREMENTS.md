@@ -108,6 +108,17 @@ Request Body Data Shape:
 - user_id
 - status of order (active or complete)
 
+### Order
+- id: number
+- date: Date
+- status: string
+- userId: number
+### Order_Product
+- id: number
+- productId: number
+- quantity: number
+- orderId: number
+
 #### Database Schema
 /*****************Products*************/
 CREATE TABLE products

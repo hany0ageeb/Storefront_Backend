@@ -19,8 +19,8 @@ CREATE TABLE users
 CREATE TABLE orders
 (
     id SERIAL PRIMARY KEY,
-    date Date NOT NULL DEFAULT CURRENT_DATE,
-    status VARCHAR(10) NOT NULL DEFAULT 'active' CHECK (status IN ('active','complete')),
+    date date NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(10) NOT NULL DEFAULT 'active' /*CHECK (status IN ('active','complete')),*/,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT
 );
 /***********************Order_Product*********************/

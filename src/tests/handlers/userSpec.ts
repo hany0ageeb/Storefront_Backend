@@ -1,96 +1,136 @@
 import express, { Application } from 'express';
 import request from 'supertest';
+import { clearDatabase, createUsres } from '../utility';
+import { createClient } from '../../database';
 import jwt from 'jsonwebtoken';
 import { configuration } from '../../database';
 import { user_routes } from '../../handlers/user';
-import { User, UserStore } from '../../models/user';
+import { User } from '../../models/user';
 
-configuration.environment = 'test';
 const app: Application = express();
+app.use(express.json());
 user_routes(app);
-describe('GET api/users', () => {
-  it('should return 403', async () => {
-    await request(app)
-      .get('/api/users')
-      .set('Content-Type', 'application/json')
-      .expect(403);
+
+describe(`GET /api/users`, () => {
+  it(`should return 403 when no token is provided`, () => {
+    request(app)
+      .get(`/api/users`)
+      .expect(403)
+      .end((_err, _res) => {});
   });
-  it('Should return 200', async () => {
-    const token = jwt.sign(
-      { id: 1, userName: 'hany0' },
-      <string>configuration.tokenSecret,
-    );
-    await request(app)
-      .get('/api/users')
-      .set('Authorization', `Bearer ${token}`)
-      .set('Content-Type', 'application/json')
-      .expect(200);
+  it(`should return 200 when token is provided`, () => {
+    const token = jwt.sign({ id: -1 }, <string>configuration.tokenSecret);
+    request(app)
+      .get(`/api/users`)
+      .set(`Authorization`, `Bearer ${token}`)
+      .expect(200)
+      .end((_err, _res) => {});
   });
 });
-describe('POST /api/users', () => {
-  it('Should return 422', async () => {
-    const token = jwt.sign(
-      { id: 1, userName: 'hany0' },
-      <string>configuration.tokenSecret,
-    );
-    await request(app)
-      .post('/api/users')
+describe(`GET /api/users/:id`, () => {
+  const users: User[] = [];
+  beforeAll(async () => {
+    await clearDatabase(createClient());
+    users.push(...(await createUsres(createClient())));
+  });
+  it(`should return 404 when user id is invalid`, () => {
+    const token = jwt.sign({ id: -1 }, <string>configuration.tokenSecret);
+    request(app)
+      .get(`/api/users/${users[0].id}`)
+      .set(`Authorization`, `Bearer ${token}`)
+      .expect(404)
+      .end((_err, _res) => {});
+  });
+  it(`should return 403 when no token is provided`, () => {
+    request(app)
+      .get(`/api/users/${users[0].id}`)
+      .expect(403)
+      .end((_err, _res) => {});
+  });
+  it(`should return 200`, () => {
+    const token = jwt.sign({ id: -1 }, <string>configuration.tokenSecret);
+    request(app)
+      .get(`/api/users/${users[0].id}`)
+      .set(`Authorization`, `Bearer ${token}`)
+      .expect(200)
+      .end((_err, _res) => {});
+  });
+});
+
+describe(`POST /api/users`, () => {
+  it(`should return 403 when no token is provided`, () => {
+    request(app)
+      .post(`/api/users`)
+      .set('Content-Type', 'application/json')
       .send({
         user: {
-          id: -1,
-          userName: '',
-          firstName: '',
-          lastName: '',
-          password: '',
+          firstName: 'h_h',
+          lastName: 'h_h',
+          userName: '_h_',
+          password: 'ppp',
         },
-        token: token,
       })
-      .set('Content-Type', 'application/json')
-      .expect(422);
+      .expect(403)
+      .end((_err, _res) => {});
   });
-});
-describe('GET api/users/:id', () => {
-  let user: User;
-  beforeAll(async () => {
-    const store = new UserStore();
-    user = await store.create({
-      userName: 'hany',
-      firstName: 'hany',
-      lastName: 'hany',
-      password: '123',
-      id: -1,
-    });
-  });
-  it('should return 403', async () => {
-    await request(app)
-      .get('/api/users/1')
+  it('shoudl return 200', () => {
+    const token = jwt.sign({ id: -1 }, <string>configuration.tokenSecret);
+    request(app)
+      .post('/api/users')
       .set('Content-Type', 'application/json')
-      .expect(403);
+      .set(`Authorization`, `Bearer ${token}`)
+      .send({
+        user: {
+          firstName: 'h_h',
+          lastName: 'h_h',
+          userName: '_h_',
+          password: 'ppp',
+        },
+      })
+      .expect(200)
+      .end((_err, _req) => {});
   });
-  it('Should return 404', async () => {
-    const token = jwt.sign(
-      { id: 1, userName: 'hany0' },
-      <string>configuration.tokenSecret,
-    );
-    await request(app)
-      .get('/api/users/-1')
-      .set('Authorization', `Bearer ${token}`)
+  it(`should return 422 when provided wiht invalid user input`, () => {
+    const token = jwt.sign({ id: -1 }, <string>configuration.tokenSecret);
+    request(app)
+      .post('/api/users')
       .set('Content-Type', 'application/json')
-      .expect(404);
-  });
-  it('Should return 200', async () => {
-    const token = jwt.sign(
-      { id: 1, userName: 'hany0' },
-      <string>configuration.tokenSecret,
-    );
-    await request(app)
-      .get(`/api/users/${user.id}`)
-      .set('Authorization', `Bearer ${token}`)
-      .set('Content-Type', 'application/json')
-      .expect(200);
+      .set(`Authorization`, `Bearer ${token}`)
+      .send({
+        user: {
+          firstName: 'h_h',
+          lastName: 'h_h',
+          userName: '',
+          password: 'ppp',
+        },
+      })
+      .expect(422)
+      .end((_err, _req) => {});
   });
   afterAll(async () => {
-    const store = new UserStore();
-    await store.delete(user.id.toString());
+    await clearDatabase(createClient());
+  });
+  describe('POST /api/users/signin', () => {
+    let users: User[] = [];
+    beforeAll(async () => {
+      await clearDatabase(createClient());
+      users = await createUsres(createClient());
+    });
+    it('should return 401', () => {
+      request(app)
+        .post('/api/users/signin')
+        .set('Content-Type', 'application/json')
+        .send({ userName: 'xfakex', password: 'fake' })
+        .expect(401)
+        .end((_err, _res) => {});
+    });
+    it('should return 200', () => {
+      request(app)
+        .post('/api/users/signin')
+        .set('Content-Type', 'application/json')
+        .send({ userName: 'u1', password: 'p1' })
+        .expect(401)
+        .end((_err, _res) => {});
+    });
   });
 });

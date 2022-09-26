@@ -12,6 +12,7 @@ GRANT ALL PRIVILEGES ON DATABASE shopping_test to shopping_user;
 -> db-migrate --env dev up
 -------------------------------------------------------------------
 Backend Port: 3000
+Database Port: 5432
 -------------------------------------------------------------------
 installing packages -> npm install
 -------------------------------------------------------------------
@@ -24,5 +25,7 @@ POSTGRES_USER=shopping_user
 POSTGRES_PASSWORD=password123
 ENV=dev
 SALT_ROUNDS=10
-TOKEN_SECRET=aloha
+TOKEN_SECRET=YOU_SHOULDNT_PASS
+DB_PORT=5432
+SERVER_PORT=3000
 -----------------------------------------------------------------

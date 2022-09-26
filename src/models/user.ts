@@ -96,6 +96,34 @@ export class UserStore {
       throw new Error(`Cannot Delete User With id ${userId} : ${err}`);
     }
   }
+  async update(user: User): Promise<User | null> {
+    const connection = await createClient().connect();
+    try {
+      const sql =
+        'UPDATE users SET firstname=$1, lastname=$2, username=$3, password=$4 WHERE id=$5 RETURNING *';
+      const hash = bcrypt.hashSync(user.password, configuration.saltRound);
+      const queryResult = await connection.query(sql, [
+        user.firstName,
+        user.lastName,
+        user.userName,
+        hash,
+        user.id,
+      ]);
+      if (queryResult.rows.length) {
+        return {
+          id: user.id,
+          firstName: queryResult.rows[0].firstname,
+          lastName: queryResult.rows[0].lastname,
+          userName: queryResult.rows[0].username,
+          password: queryResult.rows[0].password,
+        };
+      } else {
+        return null;
+      }
+    } finally {
+      connection.release();
+    }
+  }
   async authenticate(userName: string, password: string): Promise<User | null> {
     try {
       const connection = await createClient().connect();

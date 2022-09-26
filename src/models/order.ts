@@ -56,11 +56,11 @@ export class OrderStore {
                     id: l.line_id,
                     orderId: l.id,
                     productId: l.product_id,
-                    quantity: l.quantity,
+                    quantity: Number(l.quantity),
                     product: {
                       id: l.product_id,
                       name: l.name,
-                      price: l.price,
+                      price: Number(l.price),
                       category: l.category,
                     },
                   };
@@ -116,7 +116,7 @@ export class OrderStore {
                   line.product = {
                     id: line.productId,
                     name: q2.rows[0].name,
-                    price: q2.rows[0].price,
+                    price: Number(q2.rows[0].price),
                     category: q2.rows[0].category,
                   };
                 } else {
@@ -174,9 +174,8 @@ export class OrderStore {
     const connection = await createClient().connect();
     try {
       const sql =
-        'SELECT orders.id as order_id,orders.date, orders.status,orders.user_id,users.firstname,users.lastname,users.username,users.password,products.id as product_id,products.name as product_name,products.price,products.category,order_product.id as line_id FROM orders LEFT JOIN users ON orders.user_id = users.id LEFT JOIN order_product ON orders.id = order_product.order_id LEFT JOIN products ON products.id = order_product.product_id WHERE orders.id = $1';
+        'SELECT orders.id as order_id,orders.date, orders.status,orders.user_id,users.firstname,users.lastname,users.username,users.password,products.id as product_id,products.name as product_name,products.price,products.category,order_product.id as line_id, order_product.quantity as quantity FROM orders LEFT JOIN users ON orders.user_id = users.id LEFT JOIN order_product ON orders.id = order_product.order_id LEFT JOIN products ON products.id = order_product.product_id WHERE orders.id = $1';
       const queryResult = await connection.query(sql, [orderId]);
-
       if (queryResult.rows.length) {
         const order: Order = {
           id: queryResult.rows[0].order_id,
@@ -200,11 +199,11 @@ export class OrderStore {
                 id: l.line_id,
                 orderId: l.order_id,
                 productId: l.product_id,
-                quantity: l.quantity,
+                quantity: Number(l.quantity),
                 product: {
                   id: l.product_id,
                   name: l.product_name,
-                  price: l.price,
+                  price: Number(l.price),
                   category: l.category,
                 },
               };
@@ -225,19 +224,14 @@ export class OrderStore {
   }
   async delete(orderId: string): Promise<Order | null> {
     try {
+      const oldOrder = await this.show(orderId);
+      if (oldOrder === null) return null;
       const connection = await createClient().connect();
       const sql = 'DELETE FROM orders where orders.id = $1 RETURNING *';
       const queryResult = await connection.query(sql, [orderId]);
       connection.release();
       if (queryResult.rows.length) {
-        return {
-          id: queryResult.rows[0].id,
-          status: queryResult.rows[0].status,
-          userId: queryResult.rows[0].user_id,
-          date: queryResult.rows[0].date,
-          user: undefined,
-          lines: [],
-        };
+        return oldOrder;
       } else {
         return null;
       }
@@ -249,7 +243,7 @@ export class OrderStore {
     try {
       const connection = await createClient().connect();
       if (typeof limit === 'undefined' || limit <= 0) limit = 5;
-      const sql = `SELECT orders.id as id, orders.status, orders.date , orders.user_id as userId, users.firstname, users.lastname, users.username, users.password, order_product.id as line_id,order_product.quantity, order_product.product_id, products.name, products.price, products.category FROM orders LEFT JOIN users ON orders.user_id = users.id LEFT JOIN order_product ON orders.id = order_product.order_id LEFT JOIN products ON order_product.product_id = products.id WHERE user_id = $1 ORDER BY orders.date LIMIT ${limit}`;
+      const sql = `SELECT orders.id as id, orders.status, orders.date , orders.user_id as userId, users.firstname, users.lastname, users.username, users.password, order_product.id as line_id,order_product.quantity, order_product.product_id, products.name, products.price, products.category FROM orders LEFT JOIN users ON orders.user_id = users.id LEFT JOIN order_product ON orders.id = order_product.order_id LEFT JOIN products ON order_product.product_id = products.id WHERE user_id = $1 AND orders.id IN (select orders.id from orders where user_id = $1 order by orders.date limit ${limit}) ORDER BY orders.date`;
       const queryResult = await connection.query(sql, [userId]);
       connection.release();
       if (queryResult.rows.length) {
@@ -275,11 +269,11 @@ export class OrderStore {
                     id: l.line_id,
                     orderId: l.id,
                     productId: l.product_id,
-                    quantity: l.quantity,
+                    quantity: Number(l.quantity),
                     product: {
                       id: l.product_id,
                       name: l.name,
-                      price: l.price,
+                      price: Number(l.price),
                       category: l.category,
                     },
                   };
@@ -327,13 +321,13 @@ export class OrderStore {
               const line: OrderLine = {
                 id: row.lineId,
                 orderId: row.id,
-                quantity: row.quantity,
+                quantity: Number(row.quantity),
                 productId: row.product_id,
                 product: {
                   id: row.product_id,
                   name: row.name,
                   category: row.category,
-                  price: row.price,
+                  price: Number(row.price),
                 },
               };
               return line;
@@ -362,7 +356,7 @@ export class OrderStore {
               id: row.id,
               date: row.date,
               status: row.status,
-              userId: row.user_id,
+              userId: row.userId,
               user: {
                 id: row.user_id,
                 firstName: row.firstname,
@@ -377,11 +371,11 @@ export class OrderStore {
                     id: l.lineId,
                     orderId: l.id,
                     productId: l.product_id,
-                    quantity: l.quantity,
+                    quantity: Number(l.quantity),
                     product: {
                       id: l.product_id,
                       name: l.name,
-                      price: l.price,
+                      price: Number(l.price),
                       category: l.category,
                     },
                   };
@@ -404,6 +398,10 @@ export class OrderStore {
     quantity: number,
   ): Promise<OrderLine> {
     try {
+      const order = await this.show(orderId);
+      if (order === null) {
+        throw new Error(`Invalid Order Number`);
+      }
       const connection = await createClient().connect();
       const sql =
         'INSERT INTO order_product (order_id, product_id, quantity) VALUES ($1,$2,$3) RETURNING *';
@@ -417,7 +415,7 @@ export class OrderStore {
         id: queryResult.rows[0].id,
         orderId: queryResult.rows[0].order_id,
         productId: queryResult.rows[0].product_id,
-        quantity: queryResult.rows[0].quantity,
+        quantity: Number(queryResult.rows[0].quantity),
         product: undefined,
       };
     } catch (err) {
@@ -435,7 +433,7 @@ export class OrderStore {
           id: queryResult.rows[0].id,
           orderId: queryResult.rows[0].order_id,
           productId: queryResult.rows[0].product_id,
-          quantity: queryResult.rows[0].quantity,
+          quantity: Number(queryResult.rows[0].quantity),
           product: undefined,
         };
       }

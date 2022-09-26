@@ -1,6 +1,6 @@
 import { Application, Request, Response } from 'express';
 import { OrderStore } from '../models/order';
-import authenticate from './authenticate';
+import authenticate, { getToken } from './authenticate';
 import { body, validationResult } from 'express-validator';
 import { ProductStore } from '../models/product';
 
@@ -11,7 +11,7 @@ const getUserCurrentOrder = async (
   try {
     const store = new OrderStore();
     const order = await store.getUserCurrentOrder(req.params.userId);
-    if (order) resp.status(200).json(order);
+    if (order) resp.status(200).json({ order: order, token: getToken(req) });
     else resp.status(404).json({ message: 'No Active order for the user.' });
   } catch (err) {
     resp.status(500).json(err);
@@ -39,15 +39,14 @@ const addProduct = async (req: Request, resp: Response): Promise<void> => {
       const product = await productStore.show(<string>req.body.productId);
       if (!product) {
         try {
-          resp
-            .status(200)
-            .json(
-              await orderStore.addProduct(
-                req.params.id,
-                <string>req.body.productId,
-                <number>req.body.quantity,
-              ),
-            );
+          resp.status(200).json({
+            line: await orderStore.addProduct(
+              req.params.id,
+              <string>req.body.line.productId,
+              <number>req.body.line.quantity,
+            ),
+            token: getToken(req),
+          });
         } catch (err) {
           resp.status(422).json({ message: `${err}` });
           return;
@@ -69,9 +68,14 @@ const removeProduct = async (req: Request, resp: Response): Promise<void> => {
     const errors = validationResult(req);
     if (errors.isEmpty()) {
       const orderStore = new OrderStore();
+      const lineId = Number(req.params.lineId);
+      if (isNaN(lineId)) {
+        resp.status(400).json({ message: 'Invalid Line Id.' });
+        return;
+      }
       const line = await orderStore.removeProduct(<string>req.body.lineId);
       if (line !== null) {
-        resp.status(200).json(line);
+        resp.status(200).json({ token: getToken(req), line: line });
       } else {
         resp.status(400).json({ message: 'Invalid Line Id.' });
       }
@@ -116,6 +120,13 @@ const index = async (req: Request, resp: Response): Promise<void> => {
 const show = async (req: Request, resp: Response): Promise<void> => {
   try {
     const orderStore = new OrderStore();
+    const orderId = Number(req.params.id);
+    if (isNaN(orderId)) {
+      resp
+        .status(404)
+        .json({ messge: 'Order# ' + req.params.id + ' does not exist' });
+      return;
+    }
     const order = await orderStore.show(req.params.id);
     if (order) {
       resp.status(200).json(order);
@@ -131,9 +142,16 @@ const show = async (req: Request, resp: Response): Promise<void> => {
 const deleteOrder = async (req: Request, resp: Response): Promise<void> => {
   try {
     const orderStore = new OrderStore();
+    const orderId = Number(req.params.id);
+    if (isNaN(orderId)) {
+      resp
+        .status(404)
+        .json({ message: 'Order#' + req.params.id + ' does not exist' });
+      return;
+    }
     const order = await orderStore.delete(req.params.id);
     if (order) {
-      resp.status(200).json(order);
+      resp.status(200).json({ token: getToken(req), order: order });
     } else {
       resp
         .status(404)
@@ -145,16 +163,21 @@ const deleteOrder = async (req: Request, resp: Response): Promise<void> => {
 };
 const create = async (req: Request, resp: Response): Promise<void> => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      resp.status(422).json(errors);
+      return;
+    }
     const orderStore = new OrderStore();
     const order = await orderStore.create({
       id: -1,
-      date: req.body.date,
-      status: req.body.status,
-      userId: req.body.userId,
-      user: req.body.user,
-      lines: req.body.lines,
+      date: req.body.order.date,
+      status: req.body.order.status,
+      userId: req.body.order.userId,
+      user: req.body.order.user,
+      lines: req.body.order.lines,
     });
-    resp.status(200).json(order);
+    resp.status(200).json({ token: getToken(req), order: order });
   } catch (err) {
     resp.status(500).json(err);
   }

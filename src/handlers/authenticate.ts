@@ -2,23 +2,24 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { configuration } from '../database';
 
+export function getToken(req: Request): string | null {
+  if (req.body && req.body.token) return <string>req.body.token;
+  if (req.headers['authorization'])
+    return req.headers['authorization'].split(' ')[1];
+  return null;
+}
 export default function authenticate(
   req: Request,
   resp: Response,
   next: () => void,
 ) {
   try {
-    if (req.body && req.body.token) {
-      jwt.verify(<string>req.body.token, <string>configuration.tokenSecret);
-      next();
+    const token = getToken(req);
+    if (token === null) {
+      resp.status(403).json(`UnAuthorized user access`);
     } else {
-      if (req.headers['authorization']) {
-        const token = req.headers['authorization'].split(' ')[1];
-        jwt.verify(token, <string>configuration.tokenSecret);
-        next();
-      } else {
-        resp.status(403).json(`UnAuthorized user access`);
-      }
+      jwt.verify(token, <string>configuration.tokenSecret);
+      next();
     }
   } catch (err) {
     resp.status(403).json(`UnAuthorized user access`);
