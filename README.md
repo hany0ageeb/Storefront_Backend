@@ -3,11 +3,11 @@
 ### how to setup and connect to the database 
 - `sudo postgres`
 - `psql`
-`CREATE USER shopping WITH PASSWORD 'password123';`
-`CREATE DATABASE shopping;`
-`CREATE DATABASE shopping_test;`
-`GRANT ALL PRIVILEGES ON DATABASE shopping to shopping_user;`
-`GRANT ALL PRIVILEGES ON DATABASE shopping_test to shopping_user;`
+- `CREATE USER shopping WITH PASSWORD 'password123';`
+- `CREATE DATABASE shopping;`
+- `CREATE DATABASE shopping_test;`
+- `GRANT ALL PRIVILEGES ON DATABASE shopping to shopping_user;`
+- `GRANT ALL PRIVILEGES ON DATABASE shopping_test to shopping_user;`
 -------------------------------------------------------------------
 -> db-migrate --env dev up
 -------------------------------------------------------------------
