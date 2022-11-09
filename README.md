@@ -1,9 +1,9 @@
-# Build a Storefront Backend
+## Build a Storefront Backend
 ------------------------------------------------------
-# how to setup and connect to the database 
--> sudo postgres
--> psql
-CREATE USER shopping WITH PASSWORD 'password123';
+### how to setup and connect to the database 
+- `sudo postgres`
+- `psql`
+`CREATE USER shopping WITH PASSWORD 'password123';`
 CREATE DATABASE shopping;
 CREATE DATABASE shopping_test;
 GRANT ALL PRIVILEGES ON DATABASE shopping to shopping_user;
